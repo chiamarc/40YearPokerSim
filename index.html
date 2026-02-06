@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyPoker Trainer — Tyler</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="banner">
+      <div class="brand">
+        <h1>MyPoker Tyler Trainer</h1>
+        <p>5-card hand • 5 community pairs • 3-from-hand required</p>
+      </div>
+      <div class="table-meta">
+        <div class="pill">Dealer: <span id="dealer-label">1</span></div>
+        <div class="pill">Round: <span id="round-label">1</span></div>
+      </div>
+    </header>
+
+    <main class="table">
+      <section class="panel settings">
+        <button class="panel-toggle" data-target="settings-panel">Table Settings</button>
+        <div id="settings-panel" class="panel-body">
+          <div class="grid">
+            <label>
+              Players
+              <input id="player-count" type="number" min="2" max="8" value="4" />
+            </label>
+            <label class="checkbox">
+              <input id="high-low" type="checkbox" checked />
+              High / Low split
+            </label>
+            <label class="checkbox">
+              <input id="natural-low" type="checkbox" checked />
+              Natural low required
+            </label>
+          </div>
+          <div class="settings-note">Settings lock after first deal.</div>
+        </div>
+      </section>
+
+      <section class="panel controls">
+        <h2>Dealer Controls</h2>
+        <div class="actions">
+          <button id="new-game">Deal new hand</button>
+          <button id="reveal-next" disabled>Reveal next pair</button>
+          <button id="simulate-odds" disabled>Simulate odds</button>
+          <button id="all-action" disabled>All action</button>
+        </div>
+        <div class="status">
+          <div>Wild ranks: <span id="wild-label">None</span></div>
+          <div>Current actor: <span id="actor-label">-</span></div>
+        </div>
+        <div id="game-message" class="message"></div>
+      </section>
+
+      <section class="panel pot">
+        <h2>Pot</h2>
+        <div class="pot-display">
+          <div class="chip-stack" id="chip-stack"></div>
+          <div class="pot-total">$<span id="pot-total">0.00</span></div>
+        </div>
+      </section>
+
+      <section class="panel player">
+        <h2>Your Hand</h2>
+        <div id="player-hand" class="cards"></div>
+        <div class="betting">
+          <div class="betting-row">
+            <button class="bet-btn" data-amount="0.05">Bet 5¢</button>
+            <button class="bet-btn" data-amount="0.10">Bet 10¢</button>
+            <button class="bet-btn" data-amount="0.15">Bet 15¢</button>
+            <button class="bet-btn" data-amount="0.20">Bet 20¢</button>
+            <button class="bet-btn" data-amount="0.25">Bet 25¢</button>
+          </div>
+          <div class="betting-row">
+            <button id="call-btn">Call</button>
+            <button id="fold-btn" class="secondary">Fold</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel community">
+        <h2>Community Pairs</h2>
+        <div id="community" class="community-grid"></div>
+      </section>
+
+      <section class="panel opponents">
+        <h2>Opponents</h2>
+        <div id="opponent-actions" class="opponent-grid"></div>
+      </section>
+
+      <section class="panel trainer">
+        <h2>Trainer Output</h2>
+        <div class="trainer-grid">
+          <div>
+            <h3>Win Odds</h3>
+            <ul>
+              <li>High win: <span id="high-win">-</span></li>
+              <li>Low win: <span id="low-win">-</span></li>
+              <li>Scoop: <span id="scoop-win">-</span></li>
+              <li>Any share: <span id="any-win">-</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Recommendation</h3>
+            <div id="recommendation" class="recommendation">Deal a hand to begin.</div>
+            <div class="small" id="ev-detail"></div>
+            <div class="small" id="betting-constraints"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel rules">
+        <button class="panel-toggle" data-target="rules-panel">Rules Snapshot</button>
+        <div id="rules-panel" class="panel-body">
+          <ul>
+            <li>Tyler: 5 cards down per player, 5 community pairs down, reveal one pair after each betting round.</li>
+            <li>Must use exactly 3 cards from hand and 2 community cards to make a 5-card hand.</li>
+            <li>High/Low split if enabled. Low uses natural cards only unless Natural Low is off.</li>
+            <li>Follow the Queen: a face-up queen makes the next face-up card wild. If last face-up is a queen, queens are wild.</li>
+            <li>Betting caps: max bet $0.25, at most 3 raises per round. No all-ins.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">MyPoker Trainer — Tyler build</footer>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

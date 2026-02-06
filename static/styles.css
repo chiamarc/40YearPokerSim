@@ -1,0 +1,362 @@
+:root {
+  --felt: #0e3b2f;
+  --felt-dark: #0a2a20;
+  --felt-light: #195b46;
+  --gold: #c9a24f;
+  --gold-bright: #f2d383;
+  --ivory: #f4efe2;
+  --ink: #0a0f0d;
+  --panel: rgba(12, 34, 26, 0.9);
+  --border: rgba(255, 255, 255, 0.08);
+  --muted: #c7d2c6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  color: #f6f4ee;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.06), transparent 55%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.05), transparent 50%),
+    linear-gradient(160deg, var(--felt) 0%, var(--felt-dark) 65%);
+  min-height: 100vh;
+}
+
+.banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  background: linear-gradient(120deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0));
+  border-bottom: 1px solid var(--border);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--gold-bright);
+  letter-spacing: 0.02em;
+}
+
+.brand p {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.table-meta {
+  display: flex;
+  gap: 12px;
+}
+
+.pill {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  font-family: "Fira Sans", "Arial", sans-serif;
+  font-size: 0.9rem;
+}
+
+.table {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.4rem;
+  color: var(--gold-bright);
+}
+
+.panel h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: var(--gold);
+}
+
+.settings { grid-column: span 4; }
+.controls { grid-column: span 4; }
+.pot { grid-column: span 4; text-align: center; }
+.player { grid-column: span 6; }
+.community { grid-column: span 6; }
+.opponents { grid-column: span 12; }
+.trainer { grid-column: span 6; }
+.rules { grid-column: span 6; }
+
+.panel-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--gold-bright);
+  font-size: 1.2rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.panel-body {
+  margin-top: 12px;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: "Fira Sans", "Arial", sans-serif;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+input[type="number"],
+button {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #f4efe2;
+  font-size: 0.95rem;
+  font-family: "Fira Sans", "Arial", sans-serif;
+}
+
+button {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+button:hover:enabled {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.secondary {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.status {
+  margin-top: 10px;
+  color: var(--muted);
+  font-family: "Fira Sans", "Arial", sans-serif;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.message {
+  margin-top: 10px;
+  color: var(--gold-bright);
+  font-family: "Fira Sans", "Arial", sans-serif;
+}
+
+.settings-note {
+  margin-top: 10px;
+  color: var(--muted);
+  font-family: "Fira Sans", "Arial", sans-serif;
+  font-size: 0.85rem;
+}
+
+.cards,
+.community-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: var(--ivory);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 56px;
+  text-align: center;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  font-family: "Fira Sans", "Arial", sans-serif;
+}
+
+.card.face-down {
+  background: repeating-linear-gradient(
+    45deg,
+    #184c3a,
+    #184c3a 8px,
+    #123526 8px,
+    #123526 16px
+  );
+  color: transparent;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.card.wild {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.card .rank,
+.card .suit {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.betting {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.betting-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.community-grid .pair {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.opponent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.opponent-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: "Fira Sans", "Arial", sans-serif;
+}
+
+.opponent-card button {
+  width: 100%;
+}
+
+.pot-display {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.chip-stack {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.chip {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+  font-weight: 700;
+  font-family: "Fira Sans", "Arial", sans-serif;
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+.chip.white { background: #f6f4ee; }
+.chip.red { background: #d65b5b; }
+.chip.blue { background: #5c8dd6; }
+.chip.green { background: #5aa870; }
+
+.pot-total {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+
+.trainer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.recommendation {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.small {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-family: "Fira Sans", "Arial", sans-serif;
+}
+
+.footer {
+  text-align: center;
+  padding: 16px;
+  color: var(--muted);
+  font-family: "Fira Sans", "Arial", sans-serif;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .table {
+    grid-template-columns: 1fr;
+  }
+  .settings,
+  .controls,
+  .pot,
+  .player,
+  .community,
+  .opponents,
+  .trainer,
+  .rules {
+    grid-column: span 1;
+  }
+}
