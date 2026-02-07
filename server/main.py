@@ -104,3 +104,4 @@ def apply_action(session_id: str, request: ActionRequest) -> SessionState:
         player_count=session.player_count,
         payload=payload,
     )
+

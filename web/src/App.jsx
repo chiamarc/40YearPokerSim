@@ -174,7 +174,6 @@ export default function App() {
     if (!session?.payload?.available_actions?.length) return null;
     return (
       <div className="actions">
-        <div className="payload-title">Actions</div>
         <div className="action-row">
           {session.payload.available_actions.map((action) => {
             if (action === "bet" || action === "raise") {
@@ -226,9 +225,8 @@ export default function App() {
   return (
     <div className="page">
       <header className="header">
-        <div>
-          <h1>Trainer UI</h1>
-          <p>Iteration 3 — Minimal React shell</p>
+        <div className="header-title">
+          <h1>{selectedModule?.name || "Trainer UI"}</h1>
         </div>
         <div className="status">
           <span>Backend: {API_BASE}</span>
@@ -236,6 +234,51 @@ export default function App() {
       </header>
 
       <main className="content">
+        {session && (
+          <div className="table-area">
+            <div className="table-oval" />
+            <div className="pot-display">
+              <div className="chip-stacks">
+                {chipBreakdown(session.payload.pot_total).map((chip) => (
+                  <div key={chip.color} className="chip-stack">
+                    <div className={`chip ${chip.color}`} />
+                    <div className="chip-count">x{chip.count}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="pot-total">
+                Pot ${session.payload.pot_total.toFixed(2)}
+              </div>
+            </div>
+            {session.payload.hands?.map((hand, index) => (
+              <div
+                key={index}
+                className="player-seat"
+                style={seatStyle(index, session.player_count)}
+              >
+                <Hand
+                  hand={hand}
+                  index={index}
+                  isDealer={session.payload.dealer_index === index}
+                  isActor={session.payload.current_actor === index}
+                  handLabel={
+                    session.payload.hand_ranks?.length
+                      ? session.payload.hand_ranks[index]?.label
+                      : ""
+                  }
+                  isWinner={session.payload.winners?.includes(index)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {session && (
+          <section className="panel">
+            {renderActionButtons()}
+          </section>
+        )}
+
         <section className="panel">
           <div className="panel-header">
             <h2>New Session</h2>
@@ -349,49 +392,9 @@ export default function App() {
                   </div>
                 )}
               </div>
-              {renderActionButtons()}
             </div>
           )}
         </section>
-
-        {session && (
-          <div className="table-area">
-            <div className="table-oval" />
-            <div className="pot-display">
-              <div className="chip-stacks">
-                {chipBreakdown(session.payload.pot_total).map((chip) => (
-                  <div key={chip.color} className="chip-stack">
-                    <div className={`chip ${chip.color}`} />
-                    <div className="chip-count">x{chip.count}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="pot-total">
-                Pot ${session.payload.pot_total.toFixed(2)}
-              </div>
-            </div>
-            {session.payload.hands?.map((hand, index) => (
-              <div
-                key={index}
-                className="player-seat"
-                style={seatStyle(index, session.player_count)}
-              >
-                <Hand
-                  hand={hand}
-                  index={index}
-                  isDealer={session.payload.dealer_index === index}
-                  isActor={session.payload.current_actor === index}
-                  handLabel={
-                    session.payload.hand_ranks?.length
-                      ? session.payload.hand_ranks[index]?.label
-                      : ""
-                  }
-                  isWinner={session.payload.winners?.includes(index)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
       </main>
     </div>
   );
