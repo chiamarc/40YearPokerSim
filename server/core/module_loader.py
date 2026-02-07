@@ -7,6 +7,13 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
+from .defaults import (
+    DEFAULT_ANTE_PAYER,
+    DEFAULT_ANTE_PER_PLAYER,
+    DEFAULT_DENOMINATIONS,
+    DEFAULT_MAX_BET,
+    DEFAULT_MAX_RAISES,
+)
 from .types import ModuleConfig
 
 
@@ -44,9 +51,21 @@ def load_modules(modules_root: str) -> list[LoadedModule]:
 
         with open(config_path, "r", encoding="utf-8") as f:
             raw = json.load(f)
+        raw.setdefault(
+            "betting_rules",
+            {
+                "denominations": DEFAULT_DENOMINATIONS,
+                "max_bet": DEFAULT_MAX_BET,
+                "max_raises": DEFAULT_MAX_RAISES,
+                "ante_per_player": DEFAULT_ANTE_PER_PLAYER,
+                "ante_payer": DEFAULT_ANTE_PAYER,
+            },
+        )
         config = ModuleConfig.model_validate(raw)
 
         module = _load_python_module(module_path, config.id)
+        if hasattr(module, "configure"):
+            module.configure(config.model_dump())
         loaded.append(LoadedModule(config=config, module=module))
 
     return loaded

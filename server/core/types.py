@@ -16,6 +16,7 @@ class ModuleConfig(BaseModel):
     description: str
     player_limits: PlayerLimits
     ui_schema: dict[str, Any] = Field(default_factory=dict)
+    betting_rules: dict[str, Any] = Field(default_factory=dict)
 
 
 class SessionCreateRequest(BaseModel):

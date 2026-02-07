@@ -6,10 +6,25 @@ from dataclasses import dataclass
 
 SUITS = ["S", "H", "D", "C"]
 RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
-ALLOWED_BETS = [1.0]
-ANTE = 1.0
+ALLOWED_BETS = [0.05, 0.1, 0.25, 1.0]
+ANTE_PER_PLAYER = 0.05
+ANTE_PAYER = "dealer_total_once_per_game"
 RANK_VALUES = {rank: index + 2 for index, rank in enumerate(RANKS)}
 MAX_RAISES = 2
+
+
+def configure(config: dict) -> None:
+    global ALLOWED_BETS, ANTE_PER_PLAYER, ANTE_PAYER, MAX_RAISES
+    rules = config.get("betting_rules", {}) if config else {}
+    denominations = rules.get("denominations", ALLOWED_BETS)
+    max_bet = rules.get("max_bet")
+    if max_bet is not None:
+        ALLOWED_BETS = [d for d in denominations if d <= max_bet]
+    else:
+        ALLOWED_BETS = denominations
+    MAX_RAISES = int(rules.get("max_raises", MAX_RAISES))
+    ANTE_PER_PLAYER = float(rules.get("ante_per_player", ANTE_PER_PLAYER))
+    ANTE_PAYER = rules.get("ante_payer", ANTE_PAYER)
 
 
 @dataclass
@@ -38,6 +53,11 @@ def _deal_new_hand(player_count: int, round_number: int, dealer_index: int) -> d
         hands.append(hand)
 
     start_index = (dealer_index + 1) % player_count
+    pot_total = round(player_count * ANTE_PER_PLAYER, 2)
+    contrib = [0.0 for _ in range(player_count)]
+    if ANTE_PAYER == "dealer_total_once_per_game":
+        contrib[dealer_index] = pot_total
+
     return {
         "hands": hands,
         "deck_count": len(deck),
@@ -47,9 +67,9 @@ def _deal_new_hand(player_count: int, round_number: int, dealer_index: int) -> d
         "start_index": start_index,
         "folded": [False for _ in range(player_count)],
         "last_action": ["" for _ in range(player_count)],
-        "pot_total": float(player_count * ANTE),
-        "contrib_this_round": [ANTE for _ in range(player_count)],
-        "current_bet": ANTE,
+        "pot_total": pot_total,
+        "contrib_this_round": contrib,
+        "current_bet": 0.0,
         "raises_this_round": 0,
         "pending_players": list(range(player_count)),
         "round_number": round_number,
@@ -61,7 +81,10 @@ def render_payload(state: dict, player_count: int) -> dict:
     return {
         "phase": state["phase"],
         "deck_count": state["deck_count"],
-        "hands": [[card.to_dict() for card in hand] for hand in state["hands"]],
+        "hands": [
+            [card.to_dict() for card in sorted(hand, key=lambda c: RANK_VALUES[c.rank])]
+            for hand in state["hands"]
+        ],
         "player_count": player_count,
         "current_actor": state["current_actor"],
         "dealer_index": state["dealer_index"],
@@ -77,7 +100,8 @@ def render_payload(state: dict, player_count: int) -> dict:
         "message": state["message"],
         "allowed_bets": ALLOWED_BETS,
         "max_raises": MAX_RAISES,
-        "ante": ANTE,
+        "ante_per_player": ANTE_PER_PLAYER,
+        "ante_payer": ANTE_PAYER,
         "winners": state.get("winners", []),
         "hand_ranks": state.get("hand_ranks", []),
         "available_actions": available_actions(state, player_count),
@@ -166,7 +190,8 @@ def apply_action(state: dict, action: dict, player_count: int) -> dict:
         state["pot_total"] += raise_amount
         state["contrib_this_round"][player_index] = new_bet
         state["current_bet"] = new_bet
-        state["raises_this_round"] += 1
+        if action_type == "raise":
+            state["raises_this_round"] += 1
         state["last_action"][player_index] = f"{action_type.capitalize()} {amount:.0f}"
         state["pending_players"] = [i for i in _active_players(state) if i != player_index]
     else:
