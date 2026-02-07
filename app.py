@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -192,9 +193,22 @@ def _ai_action_for_player(state: GameState, player_index: int) -> tuple[str, flo
         high_low_enabled=state.high_low_enabled,
         natural_low_enabled=state.natural_low_enabled,
     )
-    if odds >= 0.45 and state.raises_this_round < MAX_RAISES:
-        return "raise", 0.10
-    if odds >= 0.25:
+    roll = random.random()
+
+    if state.current_bet == 0:
+        if state.raises_this_round < MAX_RAISES:
+            raise_chance = min(0.6, max(0.08, odds * 1.4))
+            if roll < raise_chance:
+                return "raise", 0.05
+        if odds >= 0.05:
+            return "call", 0.0
+        return "fold", 0.0
+
+    if state.raises_this_round < MAX_RAISES:
+        raise_chance = min(0.45, max(0.05, odds * 0.9))
+        if roll < raise_chance and odds >= 0.12:
+            return "raise", 0.10
+    if odds >= 0.08:
         return "call", 0.0
     return "fold", 0.0
 
@@ -448,7 +462,7 @@ class Handler(BaseHTTPRequestHandler):
                 community_pairs=state.community_pairs,
                 revealed_pairs=state.revealed_pairs,
                 iterations=iterations,
-                max_time_ms=20000,
+                max_time_ms=int(os.getenv("SIM_MAX_TIME_MS", "8000")),
                 high_low_enabled=state.high_low_enabled,
                 natural_low_enabled=state.natural_low_enabled,
             )
@@ -459,10 +473,13 @@ class Handler(BaseHTTPRequestHandler):
             expected = pot * split_win - call_cost
 
             decision = "Bet/Call" if expected >= 0 else "Check/Fold"
-            sim_note = (
-                f" Simulation ran {odds['iterations_run']} iterations in {odds['elapsed_ms'] / 1000:.1f}s"
-                f"{' (time cap reached).' if odds['time_capped'] else '.'}"
-            )
+            if odds["iterations_run"] == 0:
+                sim_note = " Heuristic estimate (no Monte Carlo iterations)."
+            else:
+                sim_note = (
+                    f" Simulation ran {odds['iterations_run']} iterations in {odds['elapsed_ms'] / 1000:.1f}s"
+                    f"{' (time cap reached).' if odds['time_capped'] else '.'}"
+                )
 
             payload = {
                 "odds": odds,

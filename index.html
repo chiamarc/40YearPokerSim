@@ -18,6 +18,14 @@
       </div>
     </header>
 
+    <div id="action-log" class="action-log hidden" aria-live="polite">
+      <div class="action-log-header">
+        <strong>Action Log</strong>
+        <button id="action-log-dismiss" class="icon-button" aria-label="Dismiss log">Dismiss</button>
+      </div>
+      <div id="action-log-body" class="action-log-body"></div>
+    </div>
+
     <main class="table">
       <section class="panel settings">
         <button class="panel-toggle" data-target="settings-panel">Table Settings</button>
@@ -44,7 +52,6 @@
         <h2>Dealer Controls</h2>
         <div class="actions">
           <button id="new-game">Deal new hand</button>
-          <button id="reveal-next" disabled>Reveal next pair</button>
           <button id="simulate-odds" disabled>Simulate odds</button>
           <button id="all-action" disabled>All action</button>
         </div>

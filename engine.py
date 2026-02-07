@@ -9,6 +9,8 @@ SUITS = ["♠", "♥", "♦", "♣"]
 RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 RANK_VALUES = {rank: index + 2 for index, rank in enumerate(RANKS)}
 ACE_LOW_VALUE = 1
+HAND_COMBOS = list(combinations(range(5), 3))
+COMM_COMBOS = list(combinations(range(10), 2))
 
 
 @dataclass(frozen=True)
@@ -175,9 +177,11 @@ def best_hand_for_player(
 ) -> dict[str, list[int]]:
     best_high: list[int] | None = None
     best_low: list[int] | None = None
-    for hand_combo in combinations(hand, 3):
-        for community_combo in combinations(community_cards, 2):
-            cards = list(hand_combo) + list(community_combo)
+    for hand_idxs in HAND_COMBOS:
+        hand_combo = [hand[i] for i in hand_idxs]
+        for comm_idxs in COMM_COMBOS:
+            community_combo = [community_cards[i] for i in comm_idxs]
+            cards = hand_combo + community_combo
             high_score = evaluate_high_five(cards, wild_ranks)
             low_score = evaluate_low_five(cards, wild_ranks, natural_low_enabled)
             if best_high is None or compare_high(high_score, best_high) > 0:

@@ -1,0 +1,14 @@
+{
+  "id": "five_card_draw",
+  "name": "5-Card Draw",
+  "description": "Simple 5-card draw with no community cards.",
+  "player_limits": {
+    "min": 2,
+    "max": 8
+  },
+  "ui_schema": {
+    "community_cards": false,
+    "show_odds_panel": true,
+    "show_betting": true
+  }
+}

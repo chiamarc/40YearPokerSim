@@ -8,7 +8,6 @@ const playerCountInput = el("player-count");
 const highLowInput = el("high-low");
 const naturalLowInput = el("natural-low");
 const newGameButton = el("new-game");
-const revealButton = el("reveal-next");
 const simulateButton = el("simulate-odds");
 const allActionButton = el("all-action");
 const playerHandEl = el("player-hand");
@@ -31,6 +30,39 @@ const bettingConstraintsEl = el("betting-constraints");
 const callButton = el("call-btn");
 const foldButton = el("fold-btn");
 const betButtons = Array.from(document.querySelectorAll(".bet-btn"));
+const actionLogEl = el("action-log");
+const actionLogBodyEl = el("action-log-body");
+const actionLogDismiss = el("action-log-dismiss");
+
+const showActionLog = (lines) => {
+  actionLogBodyEl.innerHTML = "";
+  lines.forEach((line) => {
+    const item = document.createElement("div");
+    item.textContent = line;
+    actionLogBodyEl.appendChild(item);
+  });
+  actionLogEl.classList.remove("hidden");
+};
+
+const hideActionLog = () => {
+  actionLogEl.classList.add("hidden");
+  actionLogBodyEl.innerHTML = "";
+};
+
+const runWithLog = async (label, fn) => {
+  const start = performance.now();
+  try {
+    return await fn();
+  } finally {
+    const elapsedMs = performance.now() - start;
+    if (elapsedMs >= 1000) {
+      showActionLog([
+        `Action: ${label}`,
+        `Duration: ${(elapsedMs / 1000).toFixed(2)}s`,
+      ]);
+    }
+  }
+};
 
 const postJson = async (url, payload) => {
   const res = await fetch(url, {
@@ -124,7 +156,6 @@ const updateActionButtons = (data) => {
   callButton.disabled = !isHeroTurn;
   foldButton.disabled = !isHeroTurn;
 
-  revealButton.disabled = data.revealed_pairs >= 5 || data.game_over;
   simulateButton.disabled = data.game_over;
   allActionButton.disabled = isHeroTurn || data.game_over;
 };
@@ -179,66 +210,75 @@ const renderState = (data) => {
 
 const triggerOpponentAction = async (playerIndex) => {
   if (!state.data) return;
-  const data = await postJson("/opponent_action", { player_index: playerIndex });
-  renderState(data);
+  await runWithLog(`Opponent action (Player ${playerIndex + 1})`, async () => {
+    const data = await postJson("/opponent_action", { player_index: playerIndex });
+    renderState(data);
+  });
 };
 
 const handleNewGame = async () => {
-  const payload = {
-    player_count: Number(playerCountInput.value || 4),
-    high_low: highLowInput.checked,
-    natural_low: naturalLowInput.checked,
-  };
-  const data = await postJson("/new_game", payload);
-  renderState(data);
-  updateSettingsLock(true);
-  updateTrainerEmpty();
+  await runWithLog("New game", async () => {
+    const payload = {
+      player_count: Number(playerCountInput.value || 4),
+      high_low: highLowInput.checked,
+      natural_low: naturalLowInput.checked,
+    };
+    const data = await postJson("/new_game", payload);
+    renderState(data);
+    updateSettingsLock(true);
+    updateTrainerEmpty();
+  });
 };
 
-const handleReveal = async () => {
-  if (!state.data) return;
-  const data = await postJson("/reveal_next", {});
-  renderState(data);
-};
 
 const handleSimulate = async () => {
   if (!state.data) return;
-  const data = await postJson("/simulate", {});
-  renderState(data);
-  renderTrainer(data);
+  await runWithLog("Simulate odds", async () => {
+    const data = await postJson("/simulate", {});
+    renderState(data);
+    renderTrainer(data);
+  });
 };
 
 const handleAllAction = async () => {
-  const data = await postJson("/all_action", {});
-  renderState(data);
+  await runWithLog("All action", async () => {
+    const data = await postJson("/all_action", {});
+    renderState(data);
+  });
 };
 
 const handleBet = async (amount) => {
   if (!state.data) return;
-  const data = await postJson("/action", {
-    player_index: state.data.hero_index,
-    action: "raise",
-    amount,
+  await runWithLog(`Bet ${Math.round(amount * 100)}¢`, async () => {
+    const data = await postJson("/action", {
+      player_index: state.data.hero_index,
+      action: "raise",
+      amount,
+    });
+    renderState(data);
   });
-  renderState(data);
 };
 
 const handleCall = async () => {
   if (!state.data) return;
-  const data = await postJson("/action", {
-    player_index: state.data.hero_index,
-    action: "call",
+  await runWithLog("Call / Check", async () => {
+    const data = await postJson("/action", {
+      player_index: state.data.hero_index,
+      action: "call",
+    });
+    renderState(data);
   });
-  renderState(data);
 };
 
 const handleFold = async () => {
   if (!state.data) return;
-  const data = await postJson("/action", {
-    player_index: state.data.hero_index,
-    action: "fold",
+  await runWithLog("Fold", async () => {
+    const data = await postJson("/action", {
+      player_index: state.data.hero_index,
+      action: "fold",
+    });
+    renderState(data);
   });
-  renderState(data);
 };
 
 const setupToggles = () => {
@@ -251,11 +291,14 @@ const setupToggles = () => {
 };
 
 newGameButton.addEventListener("click", handleNewGame);
-revealButton.addEventListener("click", handleReveal);
 simulateButton.addEventListener("click", handleSimulate);
 allActionButton.addEventListener("click", handleAllAction);
 callButton.addEventListener("click", handleCall);
 foldButton.addEventListener("click", handleFold);
+actionLogDismiss.addEventListener("click", hideActionLog);
+document.addEventListener("keydown", (event) => {
+  if (event.key.toLowerCase() === "x") hideActionLog();
+});
 betButtons.forEach((btn) => {
   btn.addEventListener("click", () => handleBet(Number(btn.dataset.amount)));
 });
