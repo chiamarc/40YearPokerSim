@@ -44,10 +44,20 @@ const chipBreakdown = (amount) => {
   return breakdown;
 };
 
-const Hand = ({ hand, index, isDealer, isActor, handLabel, isWinner }) => (
+const Hand = ({
+  hand,
+  index,
+  isDealer,
+  isActor,
+  handLabel,
+  isWinner,
+  isFolded,
+  lastAction,
+}) => (
   <div className="hand">
     <div className="hand-title">
       Player {index + 1}
+      {lastAction && <span className="player-action">{lastAction}</span>}
       {handLabel && <span className="hand-rank-inline">({handLabel})</span>}
       {isDealer && <span className="player-indicator dealer" title="Dealer" />}
       {isActor && <span className="player-indicator actor" title="Current actor" />}
@@ -55,24 +65,32 @@ const Hand = ({ hand, index, isDealer, isActor, handLabel, isWinner }) => (
     </div>
     <div className="card-row">
       {hand.map((card) => (
-        <div className="card" key={card.code} data-suit={card.suit}>
-          <div className="card-corner top-left">
-            <div className="rank">{rankLabel(card.rank)}</div>
-            <div className="suit">{suitSymbol(card.suit)}</div>
-          </div>
-          <div className="card-corner top-right">
-            <div className="rank">{rankLabel(card.rank)}</div>
-            <div className="suit">{suitSymbol(card.suit)}</div>
-          </div>
-          <div className="card-center">{suitSymbol(card.suit)}</div>
-          <div className="card-corner bottom-left">
-            <div className="rank">{rankLabel(card.rank)}</div>
-            <div className="suit">{suitSymbol(card.suit)}</div>
-          </div>
-          <div className="card-corner bottom-right">
-            <div className="rank">{rankLabel(card.rank)}</div>
-            <div className="suit">{suitSymbol(card.suit)}</div>
-          </div>
+        <div
+          className={`card${card.hidden ? " back" : ""}`}
+          key={card.code}
+          data-suit={card.suit}
+        >
+          {!card.hidden && (
+            <>
+              <div className="card-corner top-left">
+                <div className="rank">{rankLabel(card.rank)}</div>
+                <div className="suit">{suitSymbol(card.suit)}</div>
+              </div>
+              <div className="card-corner top-right">
+                <div className="rank">{rankLabel(card.rank)}</div>
+                <div className="suit">{suitSymbol(card.suit)}</div>
+              </div>
+              <div className="card-center">{suitSymbol(card.suit)}</div>
+              <div className="card-corner bottom-left">
+                <div className="rank">{rankLabel(card.rank)}</div>
+                <div className="suit">{suitSymbol(card.suit)}</div>
+              </div>
+              <div className="card-corner bottom-right">
+                <div className="rank">{rankLabel(card.rank)}</div>
+                <div className="suit">{suitSymbol(card.suit)}</div>
+              </div>
+            </>
+          )}
         </div>
       ))}
     </div>
@@ -84,13 +102,13 @@ export default function App() {
   const [moduleId, setModuleId] = useState("");
   const [playerCount, setPlayerCount] = useState(4);
   const [session, setSession] = useState(null);
-  const [actionLog, setActionLog] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState(false);
   const [showNewSession, setShowNewSession] = useState(true);
   const [showMetaGroup, setShowMetaGroup] = useState(true);
   const [collapseActionLog, setCollapseActionLog] = useState(true);
+  const [showAdvice, setShowAdvice] = useState(false);
 
   useEffect(() => {
     fetchJson("/modules")
@@ -106,16 +124,6 @@ export default function App() {
     [modules, moduleId]
   );
 
-  const appendLog = (message) => {
-    const timestamp = new Date().toLocaleTimeString();
-    const entry = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      message,
-      timestamp,
-    };
-    setActionLog((prev) => [entry, ...prev].slice(0, 50));
-  };
-
   const createSession = async () => {
     if (!moduleId) return;
     setLoading(true);
@@ -130,7 +138,6 @@ export default function App() {
         }),
       });
       setSession(data);
-      appendLog(`Session created: ${data.module_id} (${data.player_count} players)`);
       setShowNewSession(false);
       setShowMetaGroup(false);
     } catch (err) {
@@ -144,7 +151,6 @@ export default function App() {
     if (!session) return;
     setActing(true);
     setError("");
-    const previous = session;
     try {
       const data = await fetchJson(`/sessions/${session.id}/action`, {
         method: "POST",
@@ -156,13 +162,6 @@ export default function App() {
         }),
       });
       setSession(data);
-      const amountLabel = amount !== null ? ` $${amount.toFixed(2)}` : "";
-      const actorLabel = `Player ${previous.payload.current_actor + 1}`;
-      const phaseLabel = data.payload.phase !== previous.payload.phase
-        ? ` → ${data.payload.phase}`
-        : "";
-      const messageLabel = data.payload.message ? ` (${data.payload.message})` : "";
-      appendLog(`${actorLabel} ${action.toUpperCase()}${amountLabel}${phaseLabel}${messageLabel}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -181,7 +180,7 @@ export default function App() {
                 <button
                   key={`${action}-${bet}`}
                   onClick={() => sendAction(action, bet)}
-                  disabled={acting}
+                  disabled={acting || showAdvice}
                 >
                   {action.toUpperCase()} ${bet.toFixed(2)}
                 </button>
@@ -191,12 +190,21 @@ export default function App() {
               <button
                 key={action}
                 onClick={() => sendAction(action)}
-                disabled={acting}
+                disabled={acting || showAdvice}
               >
                 {action.toUpperCase()}
               </button>
             );
           })}
+          {session.payload?.advice && (
+            <button
+              className="advice-button"
+              onClick={() => setShowAdvice((prev) => !prev)}
+              disabled={acting}
+            >
+              {showAdvice ? "Hide Advice" : "Show Advice"}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -213,8 +221,13 @@ export default function App() {
     const rx = 40;
     const ry = 34;
     const verticalBias = -2;
+    let extraOffset = 0;
+    if (count === 8) {
+      if (index === 1 || index === 7) extraOffset = -6;
+      if (index === 3 || index === 5) extraOffset = 6;
+    }
     const left = 50 + rx * Math.cos(angle);
-    const top = 50 + ry * Math.sin(angle) + verticalBias;
+    const top = 50 + ry * Math.sin(angle) + verticalBias + extraOffset;
     return {
       left: `${left}%`,
       top: `${top}%`,
@@ -234,6 +247,19 @@ export default function App() {
       </header>
 
       <main className="content">
+        {session?.payload?.advice && showAdvice && (
+          <div className="advice-panel">
+            <div className="advice-title">Trainee Advice</div>
+            <div className="advice-row">
+              Win chance: {session.payload.advice.win_pct}%
+            </div>
+            <div className="advice-row">
+              Recommended: {session.payload.advice.recommended_action.toUpperCase()}
+            </div>
+            <div className="advice-note">{session.payload.advice.notes}</div>
+          </div>
+        )}
+
         {session && (
           <div className="table-area">
             <div className="table-oval" />
@@ -261,6 +287,8 @@ export default function App() {
                   index={index}
                   isDealer={session.payload.dealer_index === index}
                   isActor={session.payload.current_actor === index}
+                  isFolded={session.payload.folded?.[index]}
+                  lastAction={session.payload.last_action?.[index]}
                   handLabel={
                     session.payload.hand_ranks?.length
                       ? session.payload.hand_ranks[index]?.label
@@ -379,13 +407,12 @@ export default function App() {
                 </div>
                 {!collapseActionLog && (
                   <div className="log-list">
-                    {actionLog.length === 0 ? (
+                    {!session.payload.action_log?.length ? (
                       <div className="empty">No actions yet.</div>
                     ) : (
-                      actionLog.map((entry) => (
-                        <div key={entry.id} className="log-item">
-                          <span className="log-time">{entry.timestamp}</span>
-                          <span className="log-message">{entry.message}</span>
+                      session.payload.action_log.map((entry, idx) => (
+                        <div key={`${entry}-${idx}`} className="log-item">
+                          <span className="log-message">{entry}</span>
                         </div>
                       ))
                     )}

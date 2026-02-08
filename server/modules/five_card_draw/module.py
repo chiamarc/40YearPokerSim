@@ -41,10 +41,19 @@ def _deck() -> list[Card]:
 
 
 def init_state(player_count: int) -> dict:
-    return _deal_new_hand(player_count, round_number=1, dealer_index=0)
+    trainee_index = random.randrange(player_count)
+    state = _deal_new_hand(
+        player_count, round_number=1, dealer_index=0, trainee_index=trainee_index
+    )
+    return _auto_play_until_trainee(state, player_count)
 
 
-def _deal_new_hand(player_count: int, round_number: int, dealer_index: int) -> dict:
+def _deal_new_hand(
+    player_count: int,
+    round_number: int,
+    dealer_index: int,
+    trainee_index: int,
+) -> dict:
     deck = _deck()
     random.shuffle(deck)
     hands: list[list[Card]] = []
@@ -64,9 +73,11 @@ def _deal_new_hand(player_count: int, round_number: int, dealer_index: int) -> d
         "phase": "betting",
         "current_actor": start_index,
         "dealer_index": dealer_index,
+        "trainee_index": trainee_index,
         "start_index": start_index,
         "folded": [False for _ in range(player_count)],
         "last_action": ["" for _ in range(player_count)],
+        "action_log": [],
         "pot_total": pot_total,
         "contrib_this_round": contrib,
         "current_bet": 0.0,
@@ -78,19 +89,23 @@ def _deal_new_hand(player_count: int, round_number: int, dealer_index: int) -> d
 
 
 def render_payload(state: dict, player_count: int) -> dict:
+    trainee_index = state["trainee_index"]
+    reveal = state["phase"] == "showdown"
     return {
         "phase": state["phase"],
         "deck_count": state["deck_count"],
         "hands": [
-            [card.to_dict() for card in sorted(hand, key=lambda c: RANK_VALUES[c.rank])]
-            for hand in state["hands"]
+            _render_hand(hand, idx, trainee_index, reveal)
+            for idx, hand in enumerate(state["hands"])
         ],
         "player_count": player_count,
         "current_actor": state["current_actor"],
         "dealer_index": state["dealer_index"],
+        "trainee_index": trainee_index,
         "start_index": state["start_index"],
         "folded": state["folded"],
         "last_action": state["last_action"],
+        "action_log": state.get("action_log", []),
         "pot_total": state["pot_total"],
         "contrib_this_round": state["contrib_this_round"],
         "current_bet": state["current_bet"],
@@ -105,6 +120,11 @@ def render_payload(state: dict, player_count: int) -> dict:
         "winners": state.get("winners", []),
         "hand_ranks": state.get("hand_ranks", []),
         "available_actions": available_actions(state, player_count),
+        "advice": (
+            _trainee_advice(state, player_count)
+            if state["phase"] == "betting" and state["current_actor"] == trainee_index
+            else None
+        ),
     }
 
 
@@ -128,6 +148,8 @@ def available_actions(state: dict, player_count: int) -> list[str]:
         return ["next_hand"]
     if state["phase"] != "betting":
         return []
+    if state["current_actor"] != state["trainee_index"]:
+        return []
     actor = state["current_actor"]
     if state["folded"][actor]:
         return []
@@ -147,11 +169,13 @@ def available_actions(state: dict, player_count: int) -> list[str]:
 def apply_action(state: dict, action: dict, player_count: int) -> dict:
     if state["phase"] == "showdown" and action.get("action") == "next_hand":
         dealer = (state["dealer_index"] + 1) % player_count
-        return _deal_new_hand(
+        new_state = _deal_new_hand(
             player_count,
             round_number=state["round_number"] + 1,
             dealer_index=dealer,
+            trainee_index=state["trainee_index"],
         )
+        return _auto_play_until_trainee(new_state, player_count)
     if state["phase"] != "betting":
         return state
 
@@ -159,6 +183,13 @@ def apply_action(state: dict, action: dict, player_count: int) -> dict:
     action_type = action.get("action", "")
     amount = float(action.get("amount", 0.0) or 0.0)
 
+    state = _apply_player_action(state, player_index, action_type, amount, player_count)
+    return _auto_play_until_trainee(state, player_count)
+
+
+def _apply_player_action(
+    state: dict, player_index: int, action_type: str, amount: float, player_count: int
+) -> dict:
     if player_index != state["current_actor"]:
         state["message"] = "Not this player's turn."
         return state
@@ -171,13 +202,17 @@ def apply_action(state: dict, action: dict, player_count: int) -> dict:
         state["last_action"][player_index] = "Fold"
         if player_index in state["pending_players"]:
             state["pending_players"].remove(player_index)
+        _log_action(state, player_index, "FOLD", None)
     elif action_type in {"check", "call"}:
         call_amount = max(state["current_bet"] - state["contrib_this_round"][player_index], 0.0)
         state["pot_total"] += call_amount
         state["contrib_this_round"][player_index] += call_amount
-        state["last_action"][player_index] = "Check" if call_amount == 0 else f"Call {call_amount:.0f}"
+        state["last_action"][player_index] = (
+            "Check" if call_amount == 0 else f"Call ${call_amount:.2f}"
+        )
         if player_index in state["pending_players"]:
             state["pending_players"].remove(player_index)
+        _log_action(state, player_index, "CHECK" if call_amount == 0 else "CALL", call_amount)
     elif action_type in {"bet", "raise"}:
         if amount not in ALLOWED_BETS:
             state["message"] = "Invalid bet amount."
@@ -192,8 +227,9 @@ def apply_action(state: dict, action: dict, player_count: int) -> dict:
         state["current_bet"] = new_bet
         if action_type == "raise":
             state["raises_this_round"] += 1
-        state["last_action"][player_index] = f"{action_type.capitalize()} {amount:.0f}"
+        state["last_action"][player_index] = f"{action_type.capitalize()} ${amount:.2f}"
         state["pending_players"] = [i for i in _active_players(state) if i != player_index]
+        _log_action(state, player_index, action_type.upper(), amount)
     else:
         state["message"] = "Invalid action."
         return state
@@ -219,6 +255,131 @@ def apply_action(state: dict, action: dict, player_count: int) -> dict:
     next_actor = _next_pending_player(state, player_index)
     state["current_actor"] = next_actor if next_actor is not None else state["current_actor"]
     return state
+
+
+def _render_hand(hand: list[Card], idx: int, trainee_index: int, reveal: bool) -> list[dict]:
+    if reveal or idx == trainee_index:
+        return [card.to_dict() for card in sorted(hand, key=lambda c: RANK_VALUES[c.rank])]
+    return [
+        {"rank": "", "suit": "", "code": f"hidden-{idx}-{i}", "hidden": True}
+        for i in range(len(hand))
+    ]
+
+
+def _hand_score(hand: list[Card]) -> tuple[int, list[int]]:
+    category, tiebreakers, _ = _evaluate_hand(hand)
+    return category, tiebreakers
+
+
+def _estimate_win_pct(state: dict, trainee_index: int, iterations: int = 1000) -> float:
+    active_players = [i for i in _active_players(state) if i != trainee_index]
+    if not active_players:
+        return 100.0
+    trainee_hand = state["hands"][trainee_index]
+    deck = _deck()
+    trainee_codes = {f"{card.rank}{card.suit}" for card in trainee_hand}
+    deck = [card for card in deck if f"{card.rank}{card.suit}" not in trainee_codes]
+
+    wins = 0
+    ties = 0
+    for _ in range(iterations):
+        random.shuffle(deck)
+        cursor = 0
+        opponent_hands = []
+        for _ in active_players:
+            opponent_hands.append(deck[cursor : cursor + 5])
+            cursor += 5
+        trainee_score = _hand_score(trainee_hand)
+        best = trainee_score
+        best_count = 1
+        for opp_hand in opponent_hands:
+            score = _hand_score(opp_hand)
+            if score > best:
+                best = score
+                best_count = 1
+            elif score == best:
+                best_count += 1
+        if best == trainee_score:
+            if best_count == 1:
+                wins += 1
+            else:
+                ties += 1
+    return round(((wins + ties * 0.5) / iterations) * 100, 1)
+
+
+def _trainee_advice(state: dict, player_count: int) -> dict:
+    win_pct = _estimate_win_pct(state, state["trainee_index"], iterations=1000)
+    current_bet = state["current_bet"]
+    can_raise = state["raises_this_round"] < MAX_RAISES
+    if current_bet == 0:
+        if win_pct > 55 and can_raise:
+            action = "bet"
+            note = "Strong enough to bet."
+        else:
+            action = "check"
+            note = "Check and see the next action."
+    else:
+        if win_pct > 65 and can_raise:
+            action = "raise"
+            note = "Strong hand; raise if possible."
+        elif win_pct > 45:
+            action = "call"
+            note = "Playable; call to continue."
+        else:
+            action = "fold"
+            note = "Weak position; fold."
+    return {"win_pct": win_pct, "recommended_action": action, "notes": note}
+
+
+def _choose_opponent_action(state: dict, player_index: int) -> tuple[str, float | None]:
+    category, _, _ = _evaluate_hand(state["hands"][player_index])
+    call_amount = max(state["current_bet"] - state["contrib_this_round"][player_index], 0.0)
+    can_raise = state["raises_this_round"] < MAX_RAISES
+    if state["current_bet"] == 0:
+        if category >= 4 and can_raise:
+            return "bet", ALLOWED_BETS[-1]
+        if category >= 2 and can_raise and random.random() < 0.35:
+            return "bet", ALLOWED_BETS[0]
+        return "check", None
+
+    if category >= 4 and can_raise:
+        return "raise", ALLOWED_BETS[-1]
+    if category >= 2:
+        if can_raise and random.random() < 0.2:
+            return "raise", ALLOWED_BETS[0]
+        return "call", None
+    if call_amount <= 0.1 and random.random() < 0.7:
+        return "call", None
+    return "fold", None
+
+
+def _auto_play_until_trainee(state: dict, player_count: int) -> dict:
+    safety = 0
+    while (
+        state["phase"] == "betting"
+        and state["current_actor"] != state["trainee_index"]
+        and safety < player_count * 4
+    ):
+        safety += 1
+        actor = state["current_actor"]
+        if state["folded"][actor]:
+            next_actor = _next_pending_player(state, actor)
+            if next_actor is None:
+                break
+            state["current_actor"] = next_actor
+            continue
+        action, amount = _choose_opponent_action(state, actor)
+        amount_value = amount if amount is not None else 0.0
+        state = _apply_player_action(state, actor, action, amount_value, player_count)
+    return state
+
+
+def _log_action(state: dict, player_index: int, action: str, amount: float | None) -> None:
+    label = f"Player {player_index + 1} {action}"
+    if amount is not None and amount > 0:
+        label += f" ${amount:.2f}"
+    state.setdefault("action_log", [])
+    state["action_log"].append(label)
 
 
 def _rank_value(rank: str) -> int:
@@ -270,11 +431,8 @@ def _evaluate_hand(hand: list[Card]) -> tuple[int, list[int], str]:
 def _evaluate_all_hands(hands: list[list[Card]], folded: list[bool]) -> list[dict]:
     results: list[dict] = []
     for idx, hand in enumerate(hands):
-        if folded[idx]:
-            results.append({"player": idx, "rank": None, "label": "Folded"})
-        else:
-            rank = _evaluate_hand(hand)
-            results.append({"player": idx, "rank": rank[:2], "label": rank[2]})
+        rank = _evaluate_hand(hand)
+        results.append({"player": idx, "rank": rank[:2], "label": rank[2]})
     return results
 
 
@@ -283,11 +441,10 @@ def _determine_winners(hands: list[list[Card]], folded: list[bool]) -> tuple[lis
     winners: list[int] = []
     results: list[dict] = []
     for idx, hand in enumerate(hands):
-        if folded[idx]:
-            results.append({"player": idx, "rank": None, "label": "Folded"})
-            continue
         category, tiebreakers, label = _evaluate_hand(hand)
         results.append({"player": idx, "rank": [category, tiebreakers], "label": label})
+        if folded[idx]:
+            continue
         score = (category, tiebreakers)
         if best is None or score > best:
             best = score
